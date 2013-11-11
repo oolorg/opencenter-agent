@@ -30,11 +30,11 @@ set -u
 set -x
 
 destdir=${CHEF_REPO_DIR:-/root/chef-cookbooks}
-url=${CHEF_CURRENT_COOKBOOK_URL}
-md5=${CHEF_CURRENT_COOKBOOK_MD5}
-version=${CHEF_CURRENT_COOKBOOK_VERSION}
-#repo=${CHEF_REPO:-https://github.com/rcbops/chef-cookbooks}
-#branch=${CHEF_REPO_BRANCH:-master}
+#url=${CHEF_CURRENT_COOKBOOK_URL}
+#md5=${CHEF_CURRENT_COOKBOOK_MD5}
+version=v3.0.1
+repo=${CHEF_REPO:-https://github.com/rcbops/chef-cookbooks}
+branch=${CHEF_REPO_BRANCH:-v3.0.1}
 knife_file=${CHEF_KNIFE_FILE:-/root/.chef/knife.rb}
 
 # Include the cookbook-functions.sh file
@@ -47,13 +47,26 @@ id_OS
 
 get_prereqs
 #checkout_master "${destdir}" "${repo}" "${branch}"
-download_cookbooks "${destdir}" "${version}" "${url}" "${md5}"
-# update_submodules関数内がコメントアウトされ無効だったが、
-# cookbook-functions.shで利用するため、
-# 有効にし修正を加えたため利用元側でコメントアウト修正を行う。
+#download_cookbooks "${destdir}" "${version}" "${url}" "${md5}"
 #update_submodules "${destdir}"
+
+    topdir=$(dirname ${destdir})
+    pushd ${topdir}
+
+    if [ -L ${destdir} ]; then
+        rm ${destdir}
+    elif [ -e ${destdir} ]; then
+        echo "${destdir} exists and is not a symlink"
+        exit 1
+    fi
+
+    ln -s ${destdir}-${branch} ${destdir}
+    popd
+
 upload_cookbooks "${destdir}" "${knife_file}"
 upload_roles "${destdir}" "${knife_file}"
+
+opencentercli attr update 2 "Workspace <Folsom>" --endpoint https://admin:password@0.0.0.0:8443
 
 return_fact "chef_server_cookbook_version" "'${version}'"
 

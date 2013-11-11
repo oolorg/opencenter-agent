@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 #               OpenCenter(TM) is Copyright 2013 by Rackspace US, Inc.
+#               Copyright (C) 2013 Okinawa Open Laboratory
 ##############################################################################
 #
 # OpenCenter is licensed under the Apache License, Version 2.0 (the "License");
@@ -80,6 +81,18 @@ def setup(config={}):
                           'required': True}})
     register_action(
         'download_cookbooks', chef.dispatch, [], [],
+        {'CHEF_SERVER_COOKBOOK_CHANNELS': {
+            'type': 'evaluated',
+            'expression': 'self.facts.chef_server_cookbook_channels'}},
+        timeout=120)
+    register_action(
+        'download_cookbooks_grizzly', chef.dispatch, [], [],
+        {'CHEF_SERVER_COOKBOOK_CHANNELS': {
+            'type': 'evaluated',
+            'expression': 'self.facts.chef_server_cookbook_channels'}},
+        timeout=120)
+    register_action(
+        'download_cookbooks_folsom', chef.dispatch, [], [],
         {'CHEF_SERVER_COOKBOOK_CHANNELS': {
             'type': 'evaluated',
             'expression': 'self.facts.chef_server_cookbook_channels'}},
@@ -263,6 +276,88 @@ class ChefThing(object):
         env['CHEF_CURRENT_COOKBOOK_MD5'] = md5
 
         return self.script.run_env('cookbook-download.sh', env, '')
+
+    #
+    def download_cookbooks_grizzly(self, input_data):
+        payload = input_data['payload']
+        action = input_data['action']
+        good, env = get_environment(['CHEF_SERVER_COOKBOOK_CHANNELS'],
+                                    ['CHEF_REPO_DIR', 'CHEF_REPO',
+                                     'CHEF_REPO_BRANCH'],
+                                    payload)
+
+        if not good:
+            return env
+
+        channels = {}
+        channel_name = payload['CHEF_SERVER_COOKBOOK_CHANNELS']
+        response = self.get_cookbook_channels(input_data)
+
+        if response['result_code'] == 0:
+            channels = response['result_data']
+
+        if channel_name not in channels:
+            return retval(100, 'Channel "%s" not available' % channel_name, {})
+
+        url = channels[channel_name]['url']
+
+        try:
+            content = urllib2.urlopen(url).read()
+            manifest = json.loads(content)
+        except Exception as e:
+            return retval(e.errno, str(e), None)
+
+        version = manifest['current']
+        url = manifest['versions'][version]['url']
+        md5 = manifest['versions'][version]['md5']
+
+        env['CHEF_CURRENT_COOKBOOK_VERSION'] = version
+        env['CHEF_CURRENT_COOKBOOK_URL'] = url
+        env['CHEF_CURRENT_COOKBOOK_MD5'] = md5
+
+        return self.script.run_env('cookbook-grizzly_dl.sh', env, '')
+    #
+
+    #
+    def download_cookbooks_folsom(self, input_data):
+        payload = input_data['payload']
+        action = input_data['action']
+        good, env = get_environment(['CHEF_SERVER_COOKBOOK_CHANNELS'],
+                                    ['CHEF_REPO_DIR', 'CHEF_REPO',
+                                     'CHEF_REPO_BRANCH'],
+                                    payload)
+
+        if not good:
+            return env
+
+        channels = {}
+        channel_name = payload['CHEF_SERVER_COOKBOOK_CHANNELS']
+        response = self.get_cookbook_channels(input_data)
+
+        if response['result_code'] == 0:
+            channels = response['result_data']
+
+        if channel_name not in channels:
+            return retval(100, 'Channel "%s" not available' % channel_name, {})
+
+        url = channels[channel_name]['url']
+
+        try:
+            content = urllib2.urlopen(url).read()
+            manifest = json.loads(content)
+        except Exception as e:
+            return retval(e.errno, str(e), None)
+
+        version = manifest['current']
+        url = manifest['versions'][version]['url']
+        md5 = manifest['versions'][version]['md5']
+
+        env['CHEF_CURRENT_COOKBOOK_VERSION'] = version
+        env['CHEF_CURRENT_COOKBOOK_URL'] = url
+        env['CHEF_CURRENT_COOKBOOK_MD5'] = md5
+
+        return self.script.run_env('cookbook-folsom_dl.sh', env, '')
+    #
 
     def update_cookbooks(self, input_data):
         return self.download_cookbooks(input_data)

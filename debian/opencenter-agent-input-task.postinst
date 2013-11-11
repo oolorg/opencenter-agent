@@ -30,8 +30,13 @@ case "$1" in
         METHOD="https"
         USER="admin"
         echo "[endpoints]" > /etc/opencenter/agent.conf.d/opencenter-agent-endpoints.conf
-        echo "root = ${METHOD}://${USER}:${PASSWORD}@${SERVER}:${PORT}" >> /etc/opencenter/agent.conf.d/opencenter-agent-endpoints.conf
-        echo "admin = ${METHOD}://${USER}:${PASSWORD}@${SERVER}:${PORT}/admin" >> /etc/opencenter/agent.conf.d/opencenter-agent-endpoints.conf
+        echo "root = ${METHOD}://${USER}:${SERVER}:${PORT}" >> /etc/opencenter/agent.conf.d/opencenter-agent-endpoints.conf
+        echo "admin = ${METHOD}://${USER}:${PASSWORD}@${SERVER}:/admin" >> /etc/opencenter/agent.conf.d/opencenter-agent-endpoints.conf
+
+        # OpenCenter複数Version対応
+        perl -p -w -i.bak -e "s/admin:password@0.0.0.0:8443/${USER}:${PASSWORD}@${SERVER}:${PORT}/" cookbook-folsom_dl.sh
+        perl -p -w -i.bak -e "s/admin:password@0.0.0.0:8443/${USER}:${PASSWORD}@${SERVER}:${PORT}/" cookbook-grizzly_dl.sh
+        #
 
     ;;
 

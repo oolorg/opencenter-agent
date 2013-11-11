@@ -1,5 +1,6 @@
 #
 #               OpenCenter(TM) is Copyright 2013 by Rackspace US, Inc.
+#               Copyright (C) 2013 Okinawa Open Laboratory
 ##############################################################################
 #
 # OpenCenter is licensed under the Apache License, Version 2.0 (the "License");
@@ -90,15 +91,22 @@ function checkout_master() {
     local repo=$2
     local branch=$3
 
-    local version="2.9.1"
+    # 利用しないため削除
+    # local version="2.9.1"
 
     topdir=$(dirname ${destdir})
     mkdir -p ${topdir}
 
     pushd ${topdir}
 
-    wget http://j8a8313241d245d72fc52-b3448c2b169a7d986fbb3d4c6b88e559.r9.cf1.rackcdn.com/chef-cookbooks-v${version}.tgz
-    tar -xvzf chef-cookbooks-v${version}.tgz
+    # Grizzly対応のため、tarファイルを取得するのではなく、
+    # gitから取得するように修正。
+    # wget http://j8a8313241d245d72fc52-b3448c2b169a7d986fbb3d4c6b88e559.r9.cf1.rackcdn.com/chef-cookbooks-v${version}.tgz
+    # tar -xvzf chef-cookbooks-v${version}.tgz
+
+    if [[ ! -e ${destdir}-${branch} ]]; then
+        git clone ${repo} ${destdir}-${branch}
+    fi
 
     if [ -L ${destdir} ]; then
         rm ${destdir}
@@ -107,12 +115,13 @@ function checkout_master() {
         exit 1
     fi
 
-    ln -s chef-cookbooks-v${version} ${destdir}
+    ln -s ${destdir}-${branch} ${destdir}
     popd
 
-    # if [[ ! -e ${destdir} ]]; then
-    #     git clone ${repo} ${destdir}
-    # fi
+    pushd ${destdir}
+	git checkout ${branch}
+    popd
+    #
 
     # # directory already exists -- we'll assume it's the same repo
     # pushd ${destdir}
@@ -127,12 +136,19 @@ function checkout_master() {
 function update_submodules() {
     # $1 - base dir
 
-    # local destdir=$1
+    # 関数処理がコメントアウトされていたが、利用するため有効化
+    local destdir=$1
 
-    # pushd ${destdir}
-    # git submodule init
-    # git submodule update
-    # popd
+    pushd ${destdir}
+    git submodule init
+
+	## Grizzlyバージョンアップの手順に合わせ追加
+	git submodule sync
+	##
+
+    git submodule update
+    popd
+    #
 
     return 0
 }
@@ -143,6 +159,16 @@ function upload_cookbooks() {
 
     local destdir=$1
     local knife_file=$2
+
+    # (そのまま登録してしまうと、CookBookバージョン間の
+    # 不整合が発生するため)
+    # Chefに登録されているCookBookを一度削除する。
+    for COOKBOOK in `/opt/chef-server/bin/knife cookbook list -c ${knife_file} | cut -d" " -f1`
+    do
+        /opt/chef-server/bin/knife cookbook delete ${COOKBOOK} -a -y -c ${knife_file}
+        # echo ${COOKBOOK}
+    done
+    #
 
     /opt/chef-server/bin/knife cookbook upload -a -o ${destdir}/cookbooks -c ${knife_file}
 }
