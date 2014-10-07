@@ -118,7 +118,9 @@ class OpenCenterAgent():
         except Exception:
             self._exit(True)
 
-        socket.setdefaulttimeout(30)
+        # bug patch agent pendding problem
+        #socket.setdefaulttimeout(30)
+        socket.setdefaulttimeout(2*60)
 
     def _exit(self, exception):
         """Terminate the agent.
